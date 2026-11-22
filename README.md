@@ -1,17 +1,17 @@
 # lixev-probe
 
-Minimal single-file probe used to measure a PaaS host's outbound IP and whether its
-edge passes `wss://` WebSocket upgrades. Pure Python 3 standard library, ~0 MB RSS
-beyond the interpreter, fits a 128 MB container.
+VLESS-over-WebSocket node for the Lixev free tier (Uzbekistan, Tashkent, `0.1 vCPU / 128 MB`).
+Lixev terminates TLS at its edge and forwards plain HTTP/WS to `PORT` (default `8080`).
 
-Endpoints:
+Zero dependencies: the WebSocket handshake and frames, the VLESS header, and the TCP/UDP
+forwarding are all in `server.js`. On boot it also downloads `komari-agent` once into `/tmp`
+and supervises it for the uptime map.
 
 | path | purpose |
 |---|---|
-| `/` | service info + egress IP report (JSON) |
-| `/ip` | egress IP report only (6 independent sources, IPv4 + IPv6) |
-| `/health` | `ok` |
-| `/headers` | request headers + client address (reverse proxy check) |
-| `/ws` | WebSocket echo (first frame = hello + egress IPs) |
+| `/health` | `200 ok` |
+| `/ws` | VLESS over WebSocket (any other upgrade path gets 404) |
+| `/ka` | komari agent state and process memory (kB) |
+| `/` | last known egress IP |
 
-Nothing is stored; no data is collected about visitors.
+Nothing is stored and no visitor data is collected.

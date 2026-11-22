@@ -1,10 +1,10 @@
-FROM python:3.12-alpine
+FROM node:20-alpine
 
 WORKDIR /app
-COPY appserve.py /app/appserve.py
+COPY server.js /app/server.js
 
 ENV PORT=8080
 EXPOSE 8080
 
-# tiny footprint: stdlib only, single process, threaded server
-CMD ["python3", "-u", "/app/appserve.py"]
+# zero-dependency VLESS-over-WS + komari agent supervisor, single process tree
+CMD ["node", "/app/server.js"]
