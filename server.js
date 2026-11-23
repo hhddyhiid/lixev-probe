@@ -1,14 +1,15 @@
-// VLESS + WebSocket server (zero dependency) + Komari agent supervisor — Lixev (Uzbekistan) edition.
-// Lixev terminates TLS at its edge and forwards plain HTTP/WS to PORT (default 8080).
-// Free tier: 0.1 vCPU / 128 MB RAM, so the agent has to share a very small box.
+// VLESS + WebSocket server (zero dependency) + Komari agent supervisor — MeroDeploy (Nepal) edition.
+// Secrets (VLESS uuid, komari token) come from env: VLESS_UUID, KA_TOKEN.
+// MeroDeploy terminates TLS at its edge and forwards plain HTTP/WS to PORT (default 8080).
 const CR = String.fromCharCode(13), LF = String.fromCharCode(10);
 const http = require("http"), crypto = require("crypto"), net = require("net"), dgram = require("dgram");
 const fs = require("fs"), cp = require("child_process");
-const UID = "9eeb8284-4462-4f42-85f6-434f32775877";
+const UID = (process.env.VLESS_UUID || "").trim();
+if (!UID) { console.error("VLESS_UUID env var is required"); process.exit(1); }
 const PORT = parseInt(process.env.PORT || "8080", 10);
 const PATH = "/ws";
 const KA_EP = "https://map.amerb.com";
-const KA_TOKEN = "qSi5fBF5iLUESuDLFlmHMY";
+const KA_TOKEN = (process.env.KA_TOKEN || "").trim();
 const KA_VER = "1.6.20";
 const KA_URLS = [
   "https://github.com/komari-monitor/komari-agent/releases/download/" + KA_VER + "/komari-agent-linux-amd64",
@@ -24,14 +25,6 @@ let E = "";
 (async () => {
   try { E = await (await fetch("https://api.ipify.org")).text(); console.log("EGRESS " + E); } catch (e) { console.log("EGRESS_FAIL " + e.message); }
 })();
-
-function mem(pid) {
-  try {
-    const s = fs.readFileSync("/proc/" + (pid || "self") + "/status", "utf8");
-    const g = k => { const m = s.match(new RegExp("^" + k + ":\\s+(\\d+) kB", "m")); return m ? parseInt(m[1], 10) : null; };
-    return { pid: pid || "self", rss_kb: g("VmRSS"), hwm_kb: g("VmHWM") };
-  } catch (e) { return { pid: pid || "self", rss_kb: null, hwm_kb: null }; }
-}
 
 // ---------- Komari agent supervision ----------
 const ka = { pid: 0, restarts: 0, log: [], state: "boot" };
@@ -71,7 +64,7 @@ async function runAgent() {
   p.stderr.on("data", d => klog("err " + d.toString().replace(/\s+$/, "").slice(0, 300)));
   p.on("exit", (c, s) => { ka.pid = 0; ka.restarts++; klog("EXIT " + c + " " + s); setTimeout(runAgent, 10000); });
 }
-setTimeout(runAgent, 1500);
+if (!KA_TOKEN) { klog("NO_TOKEN_SKIP_AGENT"); } else { setTimeout(runAgent, 1500); }
 
 // ---------- WebSocket / VLESS ----------
 function fr(p, op) {
@@ -86,8 +79,7 @@ const srv = http.createServer((q, r) => {
   const p = (q.url || "").split("?")[0];
   if (p === "/ka") {
     r.setHeader("content-type", "application/json");
-    r.end(JSON.stringify({ state: ka.state, pid: ka.pid, restarts: ka.restarts, log: ka.log,
-      mem: { node: mem(0), agent: mem(ka.pid) } }));
+    r.end(JSON.stringify(ka));
     return;
   }
   if (p === "/health") {
